@@ -1,134 +1,173 @@
-# Analytics Platform 📊
+# CinemaHub
 
-A comprehensive analytics platform for monitoring bookings and financial indicators. The project includes a powerful Go backend for aggregating data from MongoDB and a modern Vite frontend.
+A full-stack cinema booking platform with a complete SRE implementation — Infrastructure as Code, CI/CD pipeline, observability stack, and load testing.
 
-# 🛠 Technology stack
-- Backend: Go (Golang), MongoDB (Aggregation Framework), Gin (presumably).
+---
 
-- Frontend: JavaScript, Vite, CSS-in-JS/PostCSS.
+## Tech Stack
 
-- Database: MongoDB.
+| Layer | Technology |
+|-------|-----------|
+| Backend | Go 1.25, Gin, MongoDB Atlas |
+| Frontend | Vue.js 3, Vite, Nginx |
+| Database | MongoDB Atlas (cloud) |
+| Containerization | Docker, Docker Compose |
+| IaC | Terraform (Docker provider) |
+| CI/CD | GitHub Actions, Docker Hub |
+| Monitoring | Prometheus, Grafana, Alertmanager |
+| Load Testing | Locust |
 
-# 🚀 Key features
+---
 
-- Data aggregation: Automatic calculation of revenue, number of tickets, and reservations.
+## Services
 
-- Financial statistics: Calculation of average check ($AVG$), minimum and maximum order value.
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Frontend | http://localhost:3000 | — |
+| Prometheus | http://localhost:9090 | — |
+| Grafana | http://localhost:3001 | admin / admin123 |
+| Alertmanager | http://localhost:9093 | — |
+| Node Exporter | http://localhost:9101 | — |
 
-- Rounding: All financial data is automatically rounded to 2 decimal places at the 
+---
 
-- DB.API level: Standardized JSON responses with error handling.
+## Quick Start
 
-# 💻 Startup Instructions
-1. Prerequisites
-- Go installed (version 1.20+)
+### Prerequisites
 
-- Node.js installed (version 18+)
+- Docker Desktop
+- Docker Compose v2+
+- MongoDB Atlas connection string
 
-- Access to MongoDB database
+### 1. Clone the repository
 
-2. Backend Configuration
-- Go to the directory with the server part:
-```
-cd backend
-```
-- Create an .env file (if needed) and specify the connection string to MongoDB:
-```
-MONGO_URI=mongodb://localhost:27017
-PORT=8080
-```
-- Download dependencies and start the server:
-```
-go mod tidy
-go run cmd/main.go
-```
-3. Frontend Configuration
-- Navigate to the frontend directory:
-```
-cd frontend
-```
-- Set dependencies:
-```
-npm install
-```
-- Start the project in development mode:
-```
-npm run dev
+```bash
+git clone https://github.com/myrzatayev/sre-capstone.git
+cd sre-capstone/movie-app
 ```
 
-# 📂 Project structure
-```
-.
-├── backend
-│   ├── cmd
-│   │   └── main.go
-│   ├── config
-│   │   ├── config.go
-│   │   └── database.go
-│   ├── go.mod
-│   ├── go.sum
-│   ├── handlers
-│   │   ├── analytics.go
-│   │   ├── auth.go
-│   │   ├── bookings.go
-│   │   ├── cinemas.go
-│   │   ├── movies.go
-│   │   └── showtimes.go
-│   ├── middleware
-│   │   ├── auth.go
-│   │   ├── error.go
-│   │   └── role.go
-│   ├── models
-│   │   ├── booking.go
-│   │   ├── cinema.go
-│   │   ├── hall.go
-│   │   ├── movie.go
-│   │   ├── showtime.go
-│   │   ├── transaction.go
-│   │   └── user.go
-│   ├── routes
-│   │   └── routes.go
-│   ├── scripts
-│   │   ├── create_indexes.go
-│   │   └── seed.go
-│   └── utils
-│       ├── jwt.go
-│       ├── response.go
-│       └── validation.go
-└── frontend
-    ├── README.md
-    ├── index.html
-    ├── package-lock.json
-    ├── package.json
-    ├── public
-    │   └── vite.svg
-    ├── src
-    │   ├── App.vue
-    │   ├── assets
-    │   │   └── vue.svg
-    │   ├── components
-    │   │   ├── BookingCard.vue
-    │   │   ├── MovieCard.vue
-    │   │   ├── Navbar.vue
-    │   │   └── SeatMap.vue
-    │   ├── main.js
-    │   ├── router
-    │   │   └── index.js
-    │   ├── services
-    │   │   └── api.js
-    │   ├── store
-    │   │   └── auth.js
-    │   ├── style.css
-    │   ├── utils
-    │   │   └── formatters.js
-    │   └── views
-    │       ├── Home.vue
-    │       ├── Login.vue
-    │       ├── MovieDetails.vue
-    │       ├── Profile.vue
-    │       └── SeatSelection.vue
-    └── vite.config.js
-```    
+### 2. Set environment variables
 
-# 📄 License
-The project is distributed under the MIT license.
+Create a `.env` file in `movie-app/`:
+
+```env
+MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/
+MONGO_DATABASE=cinemahub
+JWT_SECRET=your-secret-key
+```
+
+### 3. Start all services
+
+```bash
+docker compose up -d --build
+```
+
+### 4. Verify everything is running
+
+```bash
+docker compose ps
+```
+
+---
+
+## Project Structure
+
+```
+movie-app/
+├── backend/                    # Go API server
+│   ├── cmd/main.go
+│   ├── handlers/               # HTTP handlers
+│   ├── middleware/             # Auth, CORS, Prometheus metrics
+│   ├── models/                 # MongoDB models
+│   ├── routes/routes.go
+│   └── Dockerfile
+│
+├── frontend/                   # Vue.js 3 SPA
+│   ├── src/
+│   │   ├── views/
+│   │   ├── components/
+│   │   └── services/api.js
+│   ├── nginx.conf
+│   └── Dockerfile
+│
+├── monitoring/                 # Observability stack
+│   ├── prometheus.yml
+│   ├── alert_rules.yml
+│   ├── autoscale.sh            # Prometheus-based auto-scaler
+│   ├── alertmanager/
+│   └── grafana/
+│       ├── dashboards/         # CinemaHub SRE dashboard
+│       └── provisioning/
+│
+├── terraform/                  # Infrastructure as Code
+│   ├── main.tf
+│   ├── variables.tf
+│   └── providers.tf
+│
+├── locust/                     # Load testing
+│   ├── locustfile.py
+│   └── locust.conf
+│
+├── docs/
+│   └── slo-definition.md       # SLI/SLO definitions
+│
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml           # GitHub Actions pipeline
+│
+└── docker-compose.yml
+```
+
+---
+
+## SLOs
+
+| SLO | Target | Window |
+|-----|--------|--------|
+| Availability | ≥ 99.5% | 30-day rolling |
+| Latency p95 | ≤ 300 ms | 5-minute |
+| Latency p99 | ≤ 500 ms | 5-minute |
+| Error Rate | ≤ 1% | 5-minute |
+
+---
+
+## CI/CD Pipeline
+
+Every push to `main` triggers a 4-stage GitHub Actions workflow:
+
+```
+test-backend → build-backend → build-frontend → deploy
+```
+
+Docker images are published to Docker Hub:
+- `myrzatayev/cinemahub-backend:latest`
+- `myrzatayev/cinemahub-frontend:latest`
+
+---
+
+## Load Testing
+
+```bash
+pip3 install locust
+cd locust && locust -f locustfile.py
+```
+
+Open http://localhost:8089 — set 50 users, spawn rate 5/s.
+
+---
+
+## Scaling
+
+```bash
+# Scale backend to 2 replicas
+docker compose up -d --scale backend=2 --no-recreate
+
+# Auto-scale based on Prometheus metrics
+bash monitoring/autoscale.sh
+```
+
+---
+
+## License
+
+MIT
