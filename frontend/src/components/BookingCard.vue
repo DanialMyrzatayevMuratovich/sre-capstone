@@ -15,8 +15,8 @@
           <span class="info-value">{{ movieTitle }}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">📅 Дата и время:</span>
-          <span class="info-value">{{ formatDate(booking.createdAt) }}</span>
+          <span class="info-label">📅 Сеанс:</span>
+          <span class="info-value">{{ formatDate(booking.showtimeStart || booking.createdAt) }}</span>
         </div>
         <div class="info-item">
           <span class="info-label">🎫 Места:</span>

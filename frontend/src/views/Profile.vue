@@ -67,7 +67,7 @@
             v-for="booking in bookings"
             :key="booking._id || booking.id"
             :booking="booking"
-            :movie-title="getMovieTitle(booking.showtimeId)"
+            :movie-title="getMovieTitle(booking)"
             @confirm="confirmBooking"
             @cancel="cancelBooking"
           />
@@ -173,9 +173,8 @@ const getRoleText = (role) => {
   return roles[role] || role
 }
 
-const getMovieTitle = (showtimeId) => {
-  // В реальности нужно получить из API
-  return 'Фильм'
+const getMovieTitle = (booking) => {
+  return booking.movieTitle || 'Фильм'
 }
 
 onMounted(async () => {

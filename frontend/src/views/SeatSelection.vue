@@ -60,48 +60,51 @@
             </div>
           </div>
 
+          <!-- Booking Timer -->
+          <div class="booking-timer" :class="{ urgent: timerUrgent }">
+            <span class="timer-icon">⏱</span>
+            <span class="timer-label">Время на бронирование:</span>
+            <span class="timer-value">{{ timerFormatted }}</span>
+          </div>
+
           <div class="payment-method">
             <h3>Способ оплаты:</h3>
             <div class="payment-options">
               <label class="payment-option">
-                <input
-                  v-model="paymentMethod"
-                  type="radio"
-                  value="wallet"
-                  name="payment"
-                />
+                <input v-model="paymentMethod" type="radio" value="wallet" name="payment" />
                 <span class="option-content">
-                  <span class="option-icon">💳</span>
+                  <span class="option-icon">💼</span>
                   <span class="option-text">
-                    <strong>Кошелек</strong>
-                    <small>{{ formatCurrency(userBalance) }}</small>
+                    <strong>Кошелёк</strong>
+                    <small>Баланс: {{ formatCurrency(userBalance) }}</small>
                   </span>
                 </span>
               </label>
 
               <label class="payment-option">
-                <input
-                  v-model="paymentMethod"
-                  type="radio"
-                  value="card"
-                  name="payment"
-                />
+                <input v-model="paymentMethod" type="radio" value="card" name="payment" />
                 <span class="option-content">
                   <span class="option-icon">💳</span>
                   <span class="option-text">
                     <strong>Банковская карта</strong>
-                    <small>Visa / MasterCard</small>
+                    <small>Visa / Mastercard</small>
                   </span>
                 </span>
               </label>
 
               <label class="payment-option">
-                <input
-                  v-model="paymentMethod"
-                  type="radio"
-                  value="cash"
-                  name="payment"
-                />
+                <input v-model="paymentMethod" type="radio" value="kaspi" name="payment" />
+                <span class="option-content">
+                  <span class="option-icon">📱</span>
+                  <span class="option-text">
+                    <strong>Kaspi QR</strong>
+                    <small>Быстрая оплата</small>
+                  </span>
+                </span>
+              </label>
+
+              <label class="payment-option">
+                <input v-model="paymentMethod" type="radio" value="cash" name="payment" />
                 <span class="option-content">
                   <span class="option-icon">💵</span>
                   <span class="option-text">
@@ -110,6 +113,85 @@
                   </span>
                 </span>
               </label>
+            </div>
+
+            <!-- Визуальная карта -->
+            <div v-if="paymentMethod === 'card'" class="card-form">
+              <div class="credit-card" :class="{ flipped: cardFlipped }" @click="cardFlipped = !cardFlipped">
+                <div class="card-front">
+                  <div class="card-chip">▬</div>
+                  <div class="card-number-display">{{ cardNumberDisplay }}</div>
+                  <div class="card-bottom">
+                    <div>
+                      <div class="card-label">Держатель</div>
+                      <div class="card-name">{{ cardHolder || 'FULL NAME' }}</div>
+                    </div>
+                    <div>
+                      <div class="card-label">Срок</div>
+                      <div class="card-expiry">{{ cardExpiry || 'MM/YY' }}</div>
+                    </div>
+                    <div class="card-type">{{ cardType }}</div>
+                  </div>
+                </div>
+                <div class="card-back">
+                  <div class="card-stripe"></div>
+                  <div class="card-cvv-wrap">
+                    <span class="card-label">CVV</span>
+                    <span class="card-cvv-val">{{ cardCvv || '•••' }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-inputs">
+                <input
+                  :value="cardNumber"
+                  @input="cardNumber = formatCardNumber($event.target.value)"
+                  placeholder="Номер карты"
+                  class="card-input"
+                  maxlength="19"
+                />
+                <input
+                  v-model="cardHolder"
+                  placeholder="Имя держателя"
+                  class="card-input"
+                  @input="cardHolder = $event.target.value.toUpperCase()"
+                />
+                <div class="card-input-row">
+                  <input
+                    :value="cardExpiry"
+                    @input="cardExpiry = formatExpiry($event.target.value)"
+                    placeholder="MM/YY"
+                    class="card-input"
+                    maxlength="5"
+                  />
+                  <input
+                    v-model="cardCvv"
+                    placeholder="CVV"
+                    class="card-input"
+                    maxlength="3"
+                    @focus="cardFlipped = true"
+                    @blur="cardFlipped = false"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Kaspi QR -->
+            <div v-if="paymentMethod === 'kaspi'" class="kaspi-block">
+              <div class="kaspi-header">
+                <span class="kaspi-logo">🟡 Kaspi Pay</span>
+                <span class="kaspi-amount">{{ formatCurrency(totalPrice) }}</span>
+              </div>
+              <div class="kaspi-qr-wrap">
+                <div class="kaspi-qr-mock">
+                  <div class="qr-corner tl"></div>
+                  <div class="qr-corner tr"></div>
+                  <div class="qr-corner bl"></div>
+                  <div class="qr-corner br"></div>
+                  <div class="qr-center">📱</div>
+                </div>
+              </div>
+              <p class="kaspi-hint">Откройте Kaspi.kz → Платить → Сканируйте QR</p>
             </div>
           </div>
 
@@ -144,7 +226,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import SeatMap from '../components/SeatMap.vue'
@@ -165,6 +247,48 @@ const selectedSeats = ref([])
 const paymentMethod = ref('wallet')
 const error = ref('')
 
+// Таймер брони
+const timerSeconds = ref(15 * 60)
+const timerInterval = ref(null)
+const timerFormatted = computed(() => {
+  const m = Math.floor(timerSeconds.value / 60).toString().padStart(2, '0')
+  const s = (timerSeconds.value % 60).toString().padStart(2, '0')
+  return `${m}:${s}`
+})
+const timerUrgent = computed(() => timerSeconds.value < 120)
+
+// Визуальная карта
+const cardNumber = ref('')
+const cardHolder = ref('')
+const cardExpiry = ref('')
+const cardCvv = ref('')
+const cardFlipped = ref(false)
+
+const formatCardNumber = (val) => {
+  const digits = val.replace(/\D/g, '').slice(0, 16)
+  return digits.replace(/(.{4})/g, '$1 ').trim()
+}
+
+const formatExpiry = (val) => {
+  const digits = val.replace(/\D/g, '').slice(0, 4)
+  if (digits.length >= 3) return digits.slice(0, 2) + '/' + digits.slice(2)
+  return digits
+}
+
+const cardNumberDisplay = computed(() => {
+  const v = cardNumber.value.replace(/\s/g, '')
+  if (!v) return '•••• •••• •••• ••••'
+  return formatCardNumber(v)
+})
+
+const cardType = computed(() => {
+  const n = cardNumber.value.replace(/\s/g, '')
+  if (n.startsWith('4')) return 'VISA'
+  if (n.startsWith('5')) return 'MC'
+  if (n.startsWith('6')) return 'Kaspi'
+  return '••••'
+})
+
 const userBalance = computed(() => {
   return authStore.user?.wallet?.balance || 0
 })
@@ -176,33 +300,23 @@ const totalPrice = computed(() => {
 const fetchShowtimeDetails = async () => {
   loading.value = true
   try {
-    // Получить информацию о сеансе
-    const showtimeResponse = await api.getShowtimes({
-      includeDetails: 'true'
-    })
-    
-    const showtimeData = showtimeResponse.data.data.find(
-      st => st._id === route.params.showtimeId
-    )
+    const response = await api.getShowtimeById(route.params.showtimeId)
+    const showtimeData = response.data.data
 
     if (!showtimeData) {
       throw new Error('Showtime not found')
     }
 
     showtime.value = showtimeData
+    movieTitle.value = showtimeData.movieDetails?.title || 'Фильм'
+    cinemaName.value = showtimeData.cinemaDetails?.name || 'Кинотеатр'
 
-    // Извлечь информацию из includeDetails
-    if (showtimeData.movieDetails) {
-      movieTitle.value = showtimeData.movieDetails.title
+    // Использовать реальные места из зала если есть, иначе генерировать
+    if (showtimeData.hallDetails?.seats?.length) {
+      hall.value = showtimeData.hallDetails
+    } else {
+      hall.value = generateHallSeats(showtimeData)
     }
-    if (showtimeData.cinemaDetails) {
-      cinemaName.value = showtimeData.cinemaDetails.name
-    }
-
-    // Получить информацию о зале (нужно создать endpoint или использовать существующие данные)
-    // Для простоты создадим mock данные на основе bookedSeats
-    hall.value = generateHallSeats(showtime.value)
-
   } catch (err) {
     console.error('Failed to fetch showtime:', err)
     error.value = 'Не удалось загрузить информацию о сеансе'
@@ -305,7 +419,7 @@ const createBooking = async () => {
     // Перейти в профиль
     router.push({
       name: 'Profile',
-      query: { bookingCreated: booking._id }
+      query: { bookingCreated: booking._id || booking.id }
     })
   } catch (err) {
     error.value = err.response?.data?.error || 'Не удалось создать бронь'
@@ -319,8 +433,24 @@ const goBack = () => {
   router.go(-1)
 }
 
+const startTimer = () => {
+  timerInterval.value = setInterval(() => {
+    if (timerSeconds.value > 0) {
+      timerSeconds.value--
+    } else {
+      clearInterval(timerInterval.value)
+      error.value = 'Время бронирования истекло. Пожалуйста, начните заново.'
+    }
+  }, 1000)
+}
+
 onMounted(() => {
   fetchShowtimeDetails()
+  startTimer()
+})
+
+onUnmounted(() => {
+  if (timerInterval.value) clearInterval(timerInterval.value)
 })
 </script>
 
@@ -449,6 +579,208 @@ onMounted(() => {
   font-weight: bold;
   color: var(--primary);
 }
+
+/* ── Timer ── */
+.booking-timer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: rgba(70, 211, 105, 0.1);
+  border: 1px solid rgba(70, 211, 105, 0.3);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 15px;
+}
+.booking-timer.urgent {
+  background: rgba(229, 9, 20, 0.1);
+  border-color: rgba(229, 9, 20, 0.4);
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.timer-icon { font-size: 20px; }
+.timer-label { color: var(--text-gray); flex: 1; }
+.timer-value { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--success); }
+.booking-timer.urgent .timer-value { color: var(--danger); }
+
+/* ── Credit Card Visual ── */
+.card-form { margin-top: 24px; }
+
+.credit-card {
+  width: 340px;
+  height: 200px;
+  margin: 0 auto 24px;
+  position: relative;
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.card-front, .card-back {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  padding: 24px;
+  backface-visibility: hidden;
+  transition: transform 0.6s ease;
+}
+
+.card-front {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-back {
+  background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+}
+
+.credit-card.flipped .card-front { transform: rotateY(-180deg); }
+.credit-card.flipped .card-back { transform: rotateY(0deg); }
+
+.card-chip {
+  font-size: 28px;
+  letter-spacing: -4px;
+  color: #fbbf24;
+}
+
+.card-number-display {
+  font-size: 20px;
+  letter-spacing: 3px;
+  font-family: 'Courier New', monospace;
+  color: white;
+  text-align: center;
+}
+
+.card-bottom {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.card-label {
+  font-size: 9px;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+}
+
+.card-name, .card-expiry {
+  font-size: 14px;
+  color: white;
+  font-weight: 600;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.card-type {
+  margin-left: auto;
+  font-size: 18px;
+  font-weight: 900;
+  color: #fbbf24;
+}
+
+.card-stripe {
+  height: 44px;
+  background: rgba(0,0,0,0.7);
+  margin: 0 -24px;
+}
+
+.card-cvv-wrap {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+}
+
+.card-cvv-val {
+  background: white;
+  color: #111;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+
+.card-inputs { display: flex; flex-direction: column; gap: 12px; }
+.card-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--dark);
+  border: 2px solid var(--dark-lighter);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 15px;
+  transition: border-color 0.2s;
+}
+.card-input:focus { border-color: var(--primary); outline: none; }
+.card-input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── Kaspi QR ── */
+.kaspi-block {
+  margin-top: 20px;
+  padding: 24px;
+  background: #1a1a1a;
+  border-radius: 16px;
+  border: 2px solid #fbbf24;
+  text-align: center;
+}
+
+.kaspi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.kaspi-logo { color: #fbbf24; }
+.kaspi-amount { color: var(--primary); font-size: 20px; }
+
+.kaspi-qr-wrap { display: flex; justify-content: center; margin-bottom: 16px; }
+
+.kaspi-qr-mock {
+  width: 160px;
+  height: 160px;
+  background: white;
+  border-radius: 12px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.qr-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 4px solid #111;
+}
+.qr-corner.tl { top: 8px; left: 8px; border-right: none; border-bottom: none; }
+.qr-corner.tr { top: 8px; right: 8px; border-left: none; border-bottom: none; }
+.qr-corner.bl { bottom: 8px; left: 8px; border-right: none; border-top: none; }
+.qr-corner.br { bottom: 8px; right: 8px; border-left: none; border-top: none; }
+.qr-center { font-size: 48px; }
+
+.kaspi-hint { font-size: 13px; color: var(--text-gray); }
 
 .payment-method {
   margin-bottom: 24px;

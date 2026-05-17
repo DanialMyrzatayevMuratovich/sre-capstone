@@ -40,6 +40,7 @@ func SetupRoutes(router *gin.Engine) {
 
 		// Showtimes (публичные)
 		api.GET("/showtimes", handlers.GetShowtimes)
+		api.GET("/showtimes/:id", handlers.GetShowtimeByID)
 
 		// Protected routes (требуют авторизации)
 		authorized := api.Group("")

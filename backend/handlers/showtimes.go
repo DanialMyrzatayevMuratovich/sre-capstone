@@ -234,6 +234,57 @@ func GetShowtimes(c *gin.Context) {
 	utils.PaginatedResponse(c, showtimes, page, limit, int(total))
 }
 
+// GetShowtimeByID - получить один сеанс с деталями фильма, кинотеатра и зала
+func GetShowtimeByID(c *gin.Context) {
+	showtimeIDStr := c.Param("id")
+	showtimeID, err := primitive.ObjectIDFromHex(showtimeIDStr)
+	if err != nil {
+		utils.ErrorResponse(c, 400, "Invalid showtime ID")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	showtimesCollection := config.GetCollection("showtimes")
+
+	pipeline := bson.A{
+		bson.M{"$match": bson.M{"_id": showtimeID}},
+		bson.M{"$lookup": bson.M{
+			"from": "movies", "localField": "movieId", "foreignField": "_id", "as": "movieDetails",
+		}},
+		bson.M{"$unwind": bson.M{"path": "$movieDetails", "preserveNullAndEmptyArrays": true}},
+		bson.M{"$lookup": bson.M{
+			"from": "cinemas", "localField": "cinemaId", "foreignField": "_id", "as": "cinemaDetails",
+		}},
+		bson.M{"$unwind": bson.M{"path": "$cinemaDetails", "preserveNullAndEmptyArrays": true}},
+		bson.M{"$lookup": bson.M{
+			"from": "halls", "localField": "hallId", "foreignField": "_id", "as": "hallDetails",
+		}},
+		bson.M{"$unwind": bson.M{"path": "$hallDetails", "preserveNullAndEmptyArrays": true}},
+	}
+
+	aggCursor, err := showtimesCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		utils.ErrorResponse(c, 500, "Failed to fetch showtime")
+		return
+	}
+	defer aggCursor.Close(ctx)
+
+	var results []bson.M
+	if err = aggCursor.All(ctx, &results); err != nil {
+		utils.ErrorResponse(c, 500, "Failed to decode showtime")
+		return
+	}
+
+	if len(results) == 0 {
+		utils.ErrorResponse(c, 404, "Showtime not found")
+		return
+	}
+
+	utils.SuccessResponse(c, 200, results[0])
+}
+
 // CreateShowtime - создать новый сеанс (admin only)
 func CreateShowtime(c *gin.Context) {
 	var showtime models.Showtime

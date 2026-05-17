@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // CreateBookingRequest - запрос на создание брони
@@ -46,8 +45,8 @@ func CreateBooking(c *gin.Context) {
 		return
 	}
 
-	if req.PaymentMethod != "wallet" && req.PaymentMethod != "card" && req.PaymentMethod != "cash" {
-		utils.ErrorResponse(c, 400, "Invalid payment method. Use: wallet, card, or cash")
+	if req.PaymentMethod != "wallet" && req.PaymentMethod != "card" && req.PaymentMethod != "cash" && req.PaymentMethod != "kaspi" {
+		utils.ErrorResponse(c, 400, "Invalid payment method. Use: wallet, card, kaspi, or cash")
 		return
 	}
 
@@ -118,7 +117,7 @@ func CreateBooking(c *gin.Context) {
 			seatFoundInHall := false
 			for _, hallSeat := range hall.Seats {
 				if hallSeat.Row == seatReq.Row && hallSeat.Number == seatReq.Number {
-					seatPrice = hallSeat.Price + showtime.BasePrice
+					seatPrice = hallSeat.Price
 					seatFoundInHall = true
 					break
 				}
@@ -190,6 +189,7 @@ func CreateBooking(c *gin.Context) {
 		newBooking.Payment.Status = "completed"
 		newBooking.Payment.PaidAt = time.Now()
 		newBooking.Payment.TransactionID = fmt.Sprintf("TXN-%s", time.Now().Format("20060102150405"))
+		newBooking.ExpiresAt = time.Now().AddDate(10, 0, 0) // подтверждённые не удаляются TTL
 	}
 
 	bookingsCollection := config.GetCollection("bookings")
@@ -266,16 +266,14 @@ func CreateBooking(c *gin.Context) {
 	utils.SuccessWithMessage(c, 201, "Booking created successfully", newBooking)
 }
 
-// GetMyBookings - получить мои брони
+// GetMyBookings - получить мои брони с деталями фильма и сеанса
 func GetMyBookings(c *gin.Context) {
-	// Получить userID из контекста
 	userID, _ := c.Get("userId")
 	userObjectID, _ := primitive.ObjectIDFromHex(userID.(string))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Пагинация
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	if page < 1 {
@@ -286,37 +284,50 @@ func GetMyBookings(c *gin.Context) {
 	}
 	skip := (page - 1) * limit
 
-	// Фильтр по статусу
 	status := c.Query("status")
 
-	filter := bson.M{"userId": userObjectID}
+	matchFilter := bson.M{"userId": userObjectID}
 	if status != "" {
-		filter["status"] = status
+		matchFilter["status"] = status
 	}
 
 	bookingsCollection := config.GetCollection("bookings")
+	total, _ := bookingsCollection.CountDocuments(ctx, matchFilter)
 
-	// Опции запроса
-	findOptions := options.Find()
-	findOptions.SetSkip(int64(skip))
-	findOptions.SetLimit(int64(limit))
-	findOptions.SetSort(bson.D{{Key: "createdAt", Value: -1}})
+	pipeline := bson.A{
+		bson.M{"$match": matchFilter},
+		bson.M{"$sort": bson.D{{Key: "createdAt", Value: -1}}},
+		bson.M{"$skip": int64(skip)},
+		bson.M{"$limit": int64(limit)},
+		bson.M{"$lookup": bson.M{
+			"from": "showtimes", "localField": "showtimeId", "foreignField": "_id", "as": "showtimeInfo",
+		}},
+		bson.M{"$unwind": bson.M{"path": "$showtimeInfo", "preserveNullAndEmptyArrays": true}},
+		bson.M{"$lookup": bson.M{
+			"from": "movies", "localField": "showtimeInfo.movieId", "foreignField": "_id", "as": "movieInfo",
+		}},
+		bson.M{"$unwind": bson.M{"path": "$movieInfo", "preserveNullAndEmptyArrays": true}},
+		bson.M{"$addFields": bson.M{
+			"movieTitle":     "$movieInfo.title",
+			"moviePoster":    "$movieInfo.posterUrl",
+			"showtimeStart":  "$showtimeInfo.startTime",
+			"showtimeFormat": "$showtimeInfo.format",
+		}},
+		bson.M{"$project": bson.M{"showtimeInfo": 0, "movieInfo": 0}},
+	}
 
-	cursor, err := bookingsCollection.Find(ctx, filter, findOptions)
+	aggCursor, err := bookingsCollection.Aggregate(ctx, pipeline)
 	if err != nil {
 		utils.ErrorResponse(c, 500, "Failed to fetch bookings")
 		return
 	}
-	defer cursor.Close(ctx)
+	defer aggCursor.Close(ctx)
 
-	var bookings []models.Booking
-	if err = cursor.All(ctx, &bookings); err != nil {
+	var bookings []bson.M
+	if err = aggCursor.All(ctx, &bookings); err != nil {
 		utils.ErrorResponse(c, 500, "Failed to decode bookings")
 		return
 	}
-
-	// Подсчет общего количества
-	total, _ := bookingsCollection.CountDocuments(ctx, filter)
 
 	utils.PaginatedResponse(c, bookings, page, limit, int(total))
 }
@@ -375,6 +386,7 @@ func ConfirmBooking(c *gin.Context) {
 				"payment.status":        "completed",
 				"payment.paidAt":        time.Now(),
 				"payment.transactionId": fmt.Sprintf("TXN-%s", time.Now().Format("20060102150405")),
+				"expiresAt":             time.Now().AddDate(10, 0, 0),
 				"updatedAt":             time.Now(),
 			},
 		},

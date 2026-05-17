@@ -103,7 +103,7 @@
               <div class="time-slots">
                 <button
                   v-for="showtime in cinema.showtimes"
-                  :key="showtime._id"
+                  :key="showtime._id || showtime.id"
                   class="time-slot"
                   @click="selectShowtime(showtime)"
                 >
@@ -262,7 +262,7 @@ const selectDate = (date) => {
 }
 
 const selectShowtime = (showtime) => {
-  router.push(`/booking/${showtime._id}`)
+  router.push(`/booking/${showtime._id || showtime.id}`)
 }
 
 const formatShortDate = (dateStr) => {
@@ -281,14 +281,36 @@ const formatShortDate = (dateStr) => {
 }
 
 const trailerMap = {
-  'Dune 3': { url: 'https://www.youtube.com/watch?v=OyJakLSEUyE&t=1s', external: true },
+  'Dune: Part Three': { id: 'OyJakLSEUyE' },
+  'Dune: Part Two': { id: 'Way9Dexny3w' },
   'The Batman 2': { id: 'T7_zMl_ZhdQ' },
   'Avatar: Fire and Ash': { id: 'nb_fFj_0rq8' },
-  'Mission: Impossible 8': { id: 'CI2u1Pf7b6c' },
+  'Mission: Impossible – The Final Reckoning': { id: 'CI2u1Pf7b6c' },
   'Nosferatu': { id: 'nulvWqYUM8k' },
-  'Inside Out 2': { id: 'L4DrolmDxmw' },
+  'Inside Out 2': { id: 'LEjhY15eCx0' },
   'Gladiator II': { id: 'wL3mZn0YeIw' },
-  'Wicked': { id: '6COmYeLsz4c' }
+  'Wicked': { id: '6COmYeLsz4c' },
+  'Oppenheimer': { id: 'L3pk_TBkihU' },
+  'Barbie': { id: 'pBk4NYhaISY' },
+  'Deadpool & Wolverine': { id: '73_1biulkYk' },
+  'Alien: Romulus': { id: 'AB2ByLn7IzQ' },
+  'The Substance': { id: 'nP4tNFuFwBg' },
+  'Furiosa: A Mad Max Saga': { id: 'XJMuhwVlca4' },
+  'The Wild Robot': { id: 'tcT9vbUGrlk' },
+  'Kingdom of the Planet of the Apes': { id: 'XaF--bLR5mY' },
+  'Moana 2': { id: 'i_OHbNOiU1E' },
+  'Wonka': { id: 'otNh9bTjXWA' },
+  'Joker: Folie à Deux': { id: 'jHPKhTSMudc' },
+  'Sinners': { id: 'WxPlHNnHDjY' },
+  'Thunderbolts*': { id: 'gVqkEKlJMhA' },
+  'Captain America: Brave New World': { id: '3bJP00FWYL8' },
+  'Beetlejuice Beetlejuice': { id: 'dWHFSPAHPx0' },
+  'A Quiet Place: Day One': { id: 'x5LpG1UEBS4' },
+  'Twisters': { id: '0B6NiR9FKDI' },
+  'Poor Things': { id: 'RlbR5N6veqw' },
+  'Conclave': { id: 'OQnq3u7PKVM' },
+  'A Minecraft Movie': { id: 'sEbBUCvmCMs' },
+  'Interstellar (Re-release)': { id: '0vxOhd4qlnA' },
 }
 
 const openTrailer = () => {

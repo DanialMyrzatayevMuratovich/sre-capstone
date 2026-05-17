@@ -1,7 +1,7 @@
 import axios from 'axios'
 
-// Базовый URL для API
-const API_BASE_URL = 'http://localhost:8080/api'
+// Базовый URL для API. По умолчанию используем Vite proxy из vite.config.js.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 // Создать axios instance
 const api = axios.create({
@@ -77,6 +77,9 @@ export default {
   // Showtimes
   getShowtimes(params) {
     return api.get('/showtimes', { params })
+  },
+  getShowtimeById(id) {
+    return api.get(`/showtimes/${id}`)
   },
 
   // Bookings

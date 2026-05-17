@@ -1,127 +1,81 @@
 <template>
-  <div class="movie-card" @click="goToMovie">
-    <div class="movie-poster">
-      <img 
-        v-if="movie.posterUrl" 
-        :src="movie.posterUrl" 
+  <router-link :to="`/movies/${movie._id || movie.id}`" class="movie-card">
+    <div class="poster-wrap">
+      <img
+        v-if="movie.posterUrl && !imgError"
+        :src="movie.posterUrl"
         :alt="movie.title"
-        @error="handleImageError"
+        class="poster-img"
+        @error="imgError = true"
       />
       <div v-else class="poster-placeholder">
-        <span class="poster-icon">🎬</span>
-        <div class="poster-title">{{ movie.title }}</div>
+        <span class="placeholder-icon">🎬</span>
+        <span class="placeholder-title">{{ movie.title }}</span>
       </div>
 
-      <!-- Rating Badge -->
-      <div class="rating-badge">
-        <span class="star">⭐</span>
-        <span>{{ movie.imdbRating }}</span>
-      </div>
+      <div class="age-badge" v-if="movie.ageRestriction > 0">{{ movie.ageRestriction }}+</div>
+      <div class="rating-badge">⭐ {{ movie.imdbRating?.toFixed(1) }}</div>
 
-      <!-- Format Badge -->
-      <div class="format-badges">
-        <span v-for="format in formats" :key="format" class="badge badge-format">
-          {{ format }}
-        </span>
+      <div class="hover-overlay">
+        <div class="overlay-genres">
+          <span v-for="g in (movie.genres || []).slice(0, 2)" :key="g" class="overlay-genre">{{ g }}</span>
+        </div>
+        <p class="overlay-desc">{{ movie.description?.slice(0, 100) }}...</p>
+        <div class="overlay-footer">
+          <span class="overlay-duration">🕐 {{ movie.duration }} мин</span>
+          <span class="overlay-cta">Смотреть →</span>
+        </div>
       </div>
     </div>
 
-    <div class="movie-info">
-      <h3 class="movie-title">{{ movie.title }}</h3>
-      <p class="movie-subtitle text-gray">{{ movie.titleRu }}</p>
-      
-      <div class="movie-meta">
-        <span class="meta-item">
-          <span class="icon">🎭</span>
-          {{ movie.genres?.join(', ') }}
-        </span>
-        <span class="meta-item">
-          <span class="icon">⏱️</span>
-          {{ formatDuration(movie.duration) }}
-        </span>
-        <span class="meta-item">
-          <span class="icon">🔞</span>
-          {{ movie.ageRestriction }}+
-        </span>
+    <div class="card-info">
+      <h3 class="card-title">{{ movie.titleRu || movie.title }}</h3>
+      <div class="card-meta">
+        <span class="card-year">{{ new Date(movie.releaseDate).getFullYear() }}</span>
+        <span class="card-rating-text">IMDb {{ movie.imdbRating?.toFixed(1) }}</span>
       </div>
-
-      <button class="btn btn-primary btn-full" @click.stop="goToMovie">
-        Купить билет
-      </button>
     </div>
-  </div>
+  </router-link>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { formatDuration } from '../utils/formatters'
+import { ref } from 'vue'
 
-const props = defineProps({
-  movie: {
-    type: Object,
-    required: true
-  }
+defineProps({
+  movie: { type: Object, required: true }
 })
 
-const router = useRouter()
-
-const formats = computed(() => {
-  // Примерные форматы (можно получить из showtimes)
-  return ['2D', '3D', 'IMAX'].slice(0, 2)
-})
-
-const goToMovie = () => {
-  const movieId = props.movie?._id || props.movie?.id
-  if (movieId) {
-    router.push(`/movie/${movieId}`)
-  } else {
-    console.error('Movie ID is missing:', props.movie)
-  }
-}
-
-const handleImageError = (e) => {
-  // Скрыть битое изображение и показать placeholder
-  e.target.style.display = 'none'
-  const placeholder = e.target.nextElementSibling
-  if (placeholder) {
-    placeholder.style.display = 'flex'
-  }
-}
+const imgError = ref(false)
 </script>
 
 <style scoped>
 .movie-card {
-  background-color: var(--dark-light);
+  display: block;
+  text-decoration: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.25s ease;
+}
+
+.movie-card:hover { transform: translateY(-6px); }
+
+.poster-wrap {
+  position: relative;
+  aspect-ratio: 2/3;
   border-radius: 12px;
   overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  background: var(--dark-light);
+  margin-bottom: 10px;
 }
 
-.movie-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 30px rgba(229, 9, 20, 0.3);
-}
-
-.movie-poster {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 2/3;
-  overflow: hidden;
-  background-color: var(--dark-lighter);
-}
-
-.movie-poster img {
+.poster-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  transition: transform 0.4s ease;
 }
 
-.movie-card:hover .movie-poster img {
-  transform: scale(1.05);
-}
+.movie-card:hover .poster-img { transform: scale(1.05); }
 
 .poster-placeholder {
   width: 100%;
@@ -130,104 +84,92 @@ const handleImageError = (e) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--dark-lighter) 0%, var(--dark) 100%);
+  gap: 12px;
+  background: linear-gradient(135deg, var(--dark-light), var(--dark-lighter));
   padding: 20px;
   text-align: center;
 }
 
-.poster-icon {
-  font-size: 64px;
-  opacity: 0.5;
-  margin-bottom: 12px;
-}
+.placeholder-icon { font-size: 48px; opacity: 0.4; }
+.placeholder-title { font-size: 13px; font-weight: 600; color: var(--text-gray); line-height: 1.3; }
 
-.poster-title {
-  font-size: 14px;
-  font-weight: bold;
-  color: var(--text);
-  opacity: 0.7;
-  line-height: 1.3;
+.age-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .rating-badge {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  background-color: rgba(0, 0, 0, 0.8);
-  padding: 6px 12px;
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: bold;
-  backdrop-filter: blur(10px);
-  z-index: 2;
-}
-
-.star {
-  font-size: 16px;
-}
-
-.format-badges {
-  position: absolute;
-  bottom: 12px;
-  left: 12px;
-  display: flex;
-  gap: 8px;
-  z-index: 2;
-}
-
-.badge-format {
-  background-color: rgba(229, 9, 20, 0.9);
-  color: white;
+  top: 10px;
+  right: 10px;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(4px);
+  color: #fbbf24;
   padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: bold;
-  text-transform: uppercase;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
 }
 
-.movie-info {
-  padding: 16px;
-}
-
-.movie-title {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.movie-subtitle {
-  font-size: 14px;
-  margin-bottom: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.movie-meta {
+.hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.55) 55%, transparent 100%);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
-  font-size: 13px;
-  color: var(--text-gray);
+  justify-content: flex-end;
+  padding: 14px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.movie-card:hover .hover-overlay { opacity: 1; }
+
+.overlay-genres { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.overlay-genre {
+  background: rgba(229,9,20,0.85);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.icon {
+.overlay-desc {
+  font-size: 11px;
+  color: rgba(255,255,255,0.8);
+  line-height: 1.5;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.overlay-footer { display: flex; justify-content: space-between; align-items: center; }
+.overlay-duration { font-size: 12px; color: rgba(255,255,255,0.65); }
+.overlay-cta { font-size: 13px; font-weight: 700; color: var(--primary); }
+
+.card-info { padding: 0 2px; }
+.card-title {
   font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.btn-full {
-  width: 100%;
-}
+.card-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-gray); }
+.card-rating-text { color: #fbbf24; font-weight: 600; }
 </style>
