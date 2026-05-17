@@ -1,0 +1,43 @@
+groups:
+  - name: cinemahub_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m]) /
+          rate(http_requests_total[5m]) > 0.01
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is above 1% for more than 1 minute. Current value: {{ $value | humanizePercentage }}"
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.99,
+            rate(http_request_duration_seconds_bucket[5m])
+          ) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency detected"
+          description: "p99 latency is above 500ms. Current value: {{ $value }}s"
+
+      - alert: BackendDown
+        expr: up{job="cinemahub-backend"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend is down"
+          description: "CinemaHub backend has been down for more than 30 seconds"
+
+      - alert: HighInFlightRequests
+        expr: http_requests_in_flight > 50
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too many in-flight requests"
+          description: "More than 50 requests are being processed simultaneously"

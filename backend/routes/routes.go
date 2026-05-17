@@ -5,6 +5,7 @@ import (
 	"cinema-booking/middleware"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // SetupRoutes - настроить все маршруты
@@ -12,6 +13,10 @@ func SetupRoutes(router *gin.Engine) {
 	// Применить глобальные middleware
 	router.Use(middleware.ErrorHandler())
 	router.Use(middleware.CORSMiddleware())
+	router.Use(middleware.PrometheusMiddleware())
+
+	// Prometheus metrics endpoint
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// API группа
 	api := router.Group("/api")
