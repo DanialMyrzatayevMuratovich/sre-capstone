@@ -3,9 +3,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: cinemahub_backend
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     environment:
       - PORT=8080
       - ENV=production
